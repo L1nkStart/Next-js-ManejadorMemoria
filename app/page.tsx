@@ -12,7 +12,7 @@ import { Square, ArrowRight, Move, FlipHorizontal as SwapHorizontal, ArrowLeftRi
 interface MemoryBlock {
   id: number;
   size: number;
-  type: "process" | "free";
+  type: string;
   name: string;
   actualSize?: number;
   isMoving?: boolean;
@@ -27,18 +27,18 @@ export default function Home() {
   const [processSize, setProcessSize] = useState(10);
 
   const calculateMetrics = () => {
-    const used = memoryBlocks.reduce((acc, block) => 
+    const used = memoryBlocks.reduce((acc, block) =>
       block.type === "process" ? acc + block.size : acc, 0);
     const free = totalMemory - used;
-    
-    const externalFragmentation = memoryBlocks.reduce((acc, block) => 
+
+    const externalFragmentation = memoryBlocks.reduce((acc, block) =>
       block.type === "free" && block.size < processSize ? acc + block.size : acc, 0);
-    
-    const internalFragmentation = memoryBlocks.reduce((acc, block) => 
+
+    const internalFragmentation = memoryBlocks.reduce((acc, block) =>
       block.type === "process" && block.actualSize
         ? acc + (block.size - block.actualSize)
         : acc, 0);
-    
+
     return { used, free, externalFragmentation, internalFragmentation };
   };
 
@@ -48,7 +48,7 @@ export default function Home() {
     }
 
     const actualSize = Math.max(processSize - Math.floor(Math.random() * 5), 1);
-    
+
     const newProcess = {
       id: nextProcessId,
       size: processSize,
@@ -63,19 +63,19 @@ export default function Home() {
         const block = prev[i];
         if (block.type === "free" && block.size >= processSize) {
           const newBlocks = [...prev];
-          
+
           // Randomly create fragmentation (30% chance)
           const shouldFragment = Math.random() < 0.3;
-          
+
           if (shouldFragment && block.size > processSize + 10) {
             // Create a random small fragment before the process
             const fragmentSize = Math.floor(Math.random() * 5) + 1;
             const remainingSize = block.size - processSize - fragmentSize;
-            
+
             // Add fragment, process, and remaining space
             newBlocks[i] = { id: Date.now(), size: fragmentSize, type: "free", name: "Free" };
             newBlocks.splice(i + 1, 0, newProcess);
-            
+
             if (remainingSize > 0) {
               newBlocks.splice(i + 2, 0, {
                 id: Date.now() + 1,
@@ -88,7 +88,7 @@ export default function Home() {
             // Normal allocation without fragmentation
             const remainingSize = block.size - processSize;
             newBlocks[i] = newProcess;
-            
+
             if (remainingSize > 0) {
               newBlocks.splice(i + 1, 0, {
                 id: Date.now(),
@@ -98,7 +98,7 @@ export default function Home() {
               });
             }
           }
-          
+
           setNextProcessId(prev => prev + 1);
           return newBlocks;
         }
@@ -112,7 +112,7 @@ export default function Home() {
       const processes = prev.filter(block => block.type === "process");
       const totalUsedSize = processes.reduce((acc, proc) => acc + proc.size, 0);
       const totalFreeSize = totalMemory - totalUsedSize;
-      
+
       if (totalFreeSize > 0) {
         return [
           ...processes,
@@ -127,11 +127,11 @@ export default function Home() {
     setMemoryBlocks(prev => {
       const processes = prev.filter(block => block.type === "process");
       if (processes.length === 0) return prev;
-      
+
       const randomIndex = Math.floor(Math.random() * processes.length);
       const processToSwap = processes[randomIndex];
-      
-      return prev.map(block => 
+
+      return prev.map(block =>
         block.id === processToSwap.id
           ? { ...block, type: "free", name: "Free" }
           : block
@@ -144,20 +144,20 @@ export default function Home() {
       // Find a process and a free block that can accommodate it
       const processes = prev.filter(block => block.type === "process");
       const freeBlocks = prev.filter(block => block.type === "free");
-      
+
       if (processes.length === 0 || freeBlocks.length === 0) return prev;
-      
+
       // Select a random process
       const randomProcessIndex = Math.floor(Math.random() * processes.length);
       const processToMove = processes[randomProcessIndex];
-      
+
       // Find suitable free blocks
       const suitableFreeBlocks = freeBlocks.filter(block => block.size >= processToMove.size);
       if (suitableFreeBlocks.length === 0) return prev;
-      
+
       // Select a random free block
       const randomFreeBlock = suitableFreeBlocks[Math.floor(Math.random() * suitableFreeBlocks.length)];
-      
+
       // Create the relocation
       return prev.map(block => {
         if (block.id === processToMove.id) {
@@ -205,19 +205,18 @@ export default function Home() {
                 {memoryBlocks.map((block, index) => (
                   <div
                     key={block.id}
-                    className={`flex-grow h-40 rounded-lg flex items-center justify-center flex-col relative ${
-                      block.type === "process" 
-                        ? "bg-primary/20 border-primary/50" 
-                        : "bg-secondary border-secondary/50"
-                    } border-2 transition-all duration-300`}
-                    style={{ 
+                    className={`flex-grow h-40 rounded-lg flex items-center justify-center flex-col relative ${block.type === "process"
+                      ? "bg-primary/20 border-primary/50"
+                      : "bg-secondary border-secondary/50"
+                      } border-2 transition-all duration-300`}
+                    style={{
                       flexBasis: `${(block.size / totalMemory) * 100}%`,
                     }}
                   >
                     <span className="font-mono">{block.name}</span>
                     <span className="text-sm text-muted-foreground">{block.size}MB</span>
                     {block.type === "process" && block.actualSize && (
-                      <div 
+                      <div
                         className="absolute bottom-0 left-0 right-0 bg-destructive/20 border-t border-destructive/50"
                         style={{ height: `${((block.size - block.actualSize) / block.size) * 100}%` }}
                       >
@@ -241,7 +240,7 @@ export default function Home() {
                     step={5}
                   />
                 </div>
-                <Button 
+                <Button
                   onClick={addProcess}
                   disabled={!memoryBlocks.some(block => block.type === "free" && block.size >= processSize)}
                 >
