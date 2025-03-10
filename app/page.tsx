@@ -100,7 +100,7 @@ export default function Home() {
             }
           }
 
-          setNextProcessId(prev => prev + 0.5);
+          setNextProcessId(prev => prev + 1);
           return newBlocks;
         }
       }
