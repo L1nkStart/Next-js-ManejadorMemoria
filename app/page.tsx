@@ -4,9 +4,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Square, ArrowRight, Move, FlipHorizontal as SwapHorizontal, ArrowLeftRight, HardDrive, ReplyAllIcon } from "lucide-react";
 
 interface MemoryBlock {
@@ -22,10 +19,10 @@ let uniqueId = 1;
 const getUniqueId = () => uniqueId++;
 
 export default function Home() {
-  const [memoryBlocks, setMemoryBlocks] = useState<MemoryBlock[]>([
+  const [memoryBlocks, setMemoryBlocks] = useState<any[]>([
     { id: getUniqueId(), size: 100, type: "free", name: "Free" },
   ]);
-  const [swappedProcesses, setSwappedProcesses] = useState<MemoryBlock[]>([]);
+  const [swappedProcesses, setSwappedProcesses] = useState<any[]>([]);
   const [totalMemory] = useState(100);
   const [nextProcessId, setNextProcessId] = useState(1);
   const [processSize, setProcessSize] = useState(10);
