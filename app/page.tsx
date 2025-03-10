@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Square, ArrowRight, Move, FlipHorizontal as SwapHorizontal, ArrowLeftRight, HardDrive } from "lucide-react";
+import { Square, ArrowRight, Move, FlipHorizontal as SwapHorizontal, ArrowLeftRight, HardDrive, ReplyAllIcon } from "lucide-react";
 
 interface MemoryBlock {
   id: number;
@@ -126,6 +126,23 @@ export default function Home() {
       return processes;
     });
   };
+
+  const limpiarProcesos = () => {
+    setMemoryBlocks(prev => {
+      const processes = prev.filter(block => block.type === "process");
+      const totalUsedSize = processes.reduce((acc, proc) => acc + proc.size, 0);
+      const totalFreeSize = totalMemory - totalUsedSize;
+
+      if (totalFreeSize > 0) {
+        return [
+          { id: getUniqueId(), size: totalFreeSize, type: "free", name: "Free" }
+        ];
+      }
+      return processes;
+    });
+    setSwappedProcesses([]);
+    setNextProcessId(1);
+  }
 
   const swapOutRandomProcess = () => {
     let processToSwap: MemoryBlock | null = null;
@@ -260,6 +277,10 @@ export default function Home() {
             <Button onClick={relocateRandomProcess} className="flex gap-2">
               <ArrowLeftRight className="h-4 w-4" />
               Reubicar Proceso
+            </Button>
+            <Button onClick={limpiarProcesos} className="flex gap-2">
+              <ReplyAllIcon className="h-4 w-4" />
+              Limpiar Procesos
             </Button>
           </div>
         </Card>
