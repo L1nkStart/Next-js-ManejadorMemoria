@@ -7,21 +7,25 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Square, ArrowRight, Move, FlipHorizontal as SwapHorizontal, ArrowLeftRight } from "lucide-react";
+import { Square, ArrowRight, Move, FlipHorizontal as SwapHorizontal, ArrowLeftRight, HardDrive } from "lucide-react";
 
 interface MemoryBlock {
   id: number;
   size: number;
-  type: string;
+  type: "process" | "free";
   name: string;
   actualSize?: number;
   isMoving?: boolean;
 }
 
+let uniqueId = 1;
+const getUniqueId = () => uniqueId++;
+
 export default function Home() {
   const [memoryBlocks, setMemoryBlocks] = useState<MemoryBlock[]>([
-    { id: 1, size: 100, type: "free", name: "Free" },
+    { id: getUniqueId(), size: 100, type: "free", name: "Free" },
   ]);
+  const [swappedProcesses, setSwappedProcesses] = useState<MemoryBlock[]>([]);
   const [totalMemory] = useState(100);
   const [nextProcessId, setNextProcessId] = useState(1);
   const [processSize, setProcessSize] = useState(10);
@@ -50,7 +54,7 @@ export default function Home() {
     const actualSize = Math.max(processSize - Math.floor(Math.random() * 5), 1);
 
     const newProcess = {
-      id: nextProcessId,
+      id: getUniqueId(),
       size: processSize,
       actualSize,
       type: "process" as const,
@@ -73,12 +77,12 @@ export default function Home() {
             const remainingSize = block.size - processSize - fragmentSize;
 
             // Add fragment, process, and remaining space
-            newBlocks[i] = { id: Date.now(), size: fragmentSize, type: "free", name: "Free" };
+            newBlocks[i] = { id: getUniqueId(), size: fragmentSize, type: "free", name: "Free" };
             newBlocks.splice(i + 1, 0, newProcess);
 
             if (remainingSize > 0) {
               newBlocks.splice(i + 2, 0, {
-                id: Date.now() + 1,
+                id: getUniqueId(),
                 size: remainingSize,
                 type: "free",
                 name: "Free"
@@ -91,7 +95,7 @@ export default function Home() {
 
             if (remainingSize > 0) {
               newBlocks.splice(i + 1, 0, {
-                id: Date.now(),
+                id: getUniqueId(),
                 size: remainingSize,
                 type: "free",
                 name: "Free"
@@ -99,7 +103,7 @@ export default function Home() {
             }
           }
 
-          setNextProcessId(prev => prev + 1);
+          setNextProcessId(prev => prev + 0.5);
           return newBlocks;
         }
       }
@@ -116,7 +120,7 @@ export default function Home() {
       if (totalFreeSize > 0) {
         return [
           ...processes,
-          { id: Date.now(), size: totalFreeSize, type: "free", name: "Free" }
+          { id: getUniqueId(), size: totalFreeSize, type: "free", name: "Free" }
         ];
       }
       return processes;
@@ -124,66 +128,112 @@ export default function Home() {
   };
 
   const swapOutRandomProcess = () => {
+    let processToSwap: MemoryBlock | null = null;
+
     setMemoryBlocks(prev => {
       const processes = prev.filter(block => block.type === "process");
       if (processes.length === 0) return prev;
 
       const randomIndex = Math.floor(Math.random() * processes.length);
-      const processToSwap = processes[randomIndex];
+      processToSwap = processes[processes.length - 1]; // Guardamos el proceso seleccionado
 
       return prev.map(block =>
-        block.id === processToSwap.id
-          ? { ...block, type: "free", name: "Free" }
+        block.id === processToSwap!.id
+          ? { ...block, type: "free", name: "Free" } // Solo cambia el tipo y nombre
           : block
       );
     });
+
+    if (processToSwap) {
+      setSwappedProcesses(prevSwapped => {
+        const exists = prevSwapped.some(p => p.id === processToSwap!.id);
+        if (exists) return prevSwapped;
+        return [...prevSwapped, { ...processToSwap!, id: getUniqueId() }];
+      });
+    }
+  };
+
+
+
+
+  const restoreSwappedProcess = (swappedProcess: MemoryBlock) => {
+    // Find a suitable free block
+    const freeBlock = memoryBlocks.find(block =>
+      block.type === "free" && block.size >= swappedProcess.size
+    );
+
+    if (freeBlock) {
+      setMemoryBlocks(prev => {
+        const index = prev.findIndex(block => block.id === freeBlock.id);
+        const newBlocks = [...prev];
+
+        // Place the process
+        const remainingSize = freeBlock.size - swappedProcess.size;
+        newBlocks[index] = { ...swappedProcess, id: getUniqueId() };
+
+        if (remainingSize > 0) {
+          newBlocks.splice(index + 1, 0, {
+            id: getUniqueId(),
+            size: remainingSize,
+            type: "free",
+            name: "Free"
+          });
+        }
+
+        return newBlocks;
+      });
+
+      // Remove from swapped processes
+      setSwappedProcesses(prev =>
+        prev.filter(proc => proc.id !== swappedProcess.id)
+      );
+    }
   };
 
   const relocateRandomProcess = () => {
     setMemoryBlocks(prev => {
-      // Find a process and a free block that can accommodate it
       const processes = prev.filter(block => block.type === "process");
       const freeBlocks = prev.filter(block => block.type === "free");
 
       if (processes.length === 0 || freeBlocks.length === 0) return prev;
 
-      // Select a random process
+      // Seleccionamos un proceso aleatorio
       const randomProcessIndex = Math.floor(Math.random() * processes.length);
       const processToMove = processes[randomProcessIndex];
 
-      // Find suitable free blocks
+      // Encontramos bloques libres que puedan acomodarlo
       const suitableFreeBlocks = freeBlocks.filter(block => block.size >= processToMove.size);
       if (suitableFreeBlocks.length === 0) return prev;
 
-      // Select a random free block
+      // Seleccionamos un bloque libre aleatorio
       const randomFreeBlock = suitableFreeBlocks[Math.floor(Math.random() * suitableFreeBlocks.length)];
 
-      // Create the relocation
-      return prev.map(block => {
+      return prev.flatMap(block => {
         if (block.id === processToMove.id) {
-          // Convert process block to free space
+          // Convertimos el bloque de proceso a espacio libre
           return { ...block, type: "free", name: "Free" };
         }
         if (block.id === randomFreeBlock.id) {
-          // Place process in new location
+          // Movemos el proceso al nuevo bloque
           const remainingSize = block.size - processToMove.size;
-          const newBlocks = [
-            { ...processToMove, id: Date.now() }, // New location for process
+          const newBlocks: MemoryBlock[] = [
+            { ...processToMove, id: getUniqueId() }, // Nuevo bloque de proceso
           ];
           if (remainingSize > 0) {
             newBlocks.push({
-              id: Date.now() + 1,
+              id: getUniqueId(),
               size: remainingSize,
               type: "free",
-              name: "Free"
+              name: "Free",
             });
           }
           return newBlocks;
         }
         return block;
-      }).flat();
+      });
     });
   };
+
 
   const metrics = calculateMetrics();
 
@@ -196,10 +246,27 @@ export default function Home() {
             Visualización interactiva de técnicas de gestión de memoria y fragmentación
           </p>
         </div>
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4">Técnicas de Gestión</h2>
+          <div className="flex gap-4 flex-wrap">
+            <Button onClick={compactMemory} className="flex gap-2">
+              <Move className="h-4 w-4" />
+              Compactar
+            </Button>
+            <Button onClick={swapOutRandomProcess} className="flex gap-2">
+              <SwapHorizontal className="h-4 w-4" />
+              Simular Swapping
+            </Button>
+            <Button onClick={relocateRandomProcess} className="flex gap-2">
+              <ArrowLeftRight className="h-4 w-4" />
+              Reubicar Proceso
+            </Button>
+          </div>
+        </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="p-6 col-span-2">
-            <h2 className="text-xl font-semibold mb-4">Memoria</h2>
+            <h2 className="text-xl font-semibold mb-4">Memoria Principal</h2>
             <div className="space-y-4">
               <div className="flex gap-2">
                 {memoryBlocks.map((block, index) => (
@@ -275,23 +342,37 @@ export default function Home() {
           </Card>
         </div>
 
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Técnicas de Gestión</h2>
-          <div className="flex gap-4 flex-wrap">
-            <Button onClick={compactMemory} className="flex gap-2">
-              <Move className="h-4 w-4" />
-              Compactar
-            </Button>
-            <Button onClick={swapOutRandomProcess} className="flex gap-2">
-              <SwapHorizontal className="h-4 w-4" />
-              Simular Swapping
-            </Button>
-            <Button onClick={relocateRandomProcess} className="flex gap-2">
-              <ArrowLeftRight className="h-4 w-4" />
-              Reubicar Proceso
-            </Button>
-          </div>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="p-6 col-span-2">
+            <h2 className="text-xl font-semibold mb-4">Memoria de Intercambio</h2>
+            <div className="flex gap-2 min-h-[100px] bg-muted/20 rounded-lg p-4">
+              {swappedProcesses.length === 0 ? (
+                <div className="flex items-center justify-center w-full text-muted-foreground">
+                  <HardDrive className="h-6 w-6 mr-2" />
+                  No hay procesos en memoria de intercambio
+                </div>
+              ) : (
+                swappedProcesses.map(process => (
+                  <div
+                    key={process.id}
+                    className="bg-primary/20 border-2 border-primary/50 rounded-lg p-4 cursor-pointer hover:bg-primary/30 transition-colors"
+                    onDoubleClick={() => restoreSwappedProcess(process)}
+                  >
+                    <div className="text-center">
+                      <p className="font-mono">{process.name}</p>
+                      <p className="text-sm text-muted-foreground">{process.size}MB</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Doble click sobre un proceso para restaurarlo a la memoria principal
+            </p>
+          </Card>
+        </div>
+
+
       </div>
     </div>
   );
